@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: luna-sunny
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: OPENAI_API_KEY
+        fromDotEnv: true
+      - key: YOUTUBE_ACCESS_TOKEN
+        fromDotEnv: true

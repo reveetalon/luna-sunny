@@ -1,0 +1,212 @@
+{
+  "name": "Content Strategy Optimization",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "strategy-cron",
+      "name": "Strategy Review Timer",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/topics/diversity/status",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "diversity-check",
+      "name": "Check Content Diversity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/topics/performance/history?limit=20",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "performance-history",
+      "name": "Fetch Performance History",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze content strategy and generate optimization recommendations\nconst diversityData = $input.all()[0].json;\nconst performanceData = $input.all()[1].json;\n\n// Analyze diversity metrics\nconst diversityAnalysis = {\n  current_diversity_score: diversityData.diversity_score,\n  content_type_balance: diversityData.content_type_percentages,\n  recommendations: diversityData.recommendations,\n  needs_rebalancing: diversityData.diversity_score < 0.7\n};\n\n// Analyze performance patterns\nconst performanceAnalysis = {\n  top_performers: performanceData.performance_history.slice(0, 5),\n  underperformers: performanceData.performance_history.filter(item => item.success_score < 0.6),\n  content_type_winners: {},\n  age_group_winners: {}\n};\n\n// Find best performing content types\nconst contentTypeScores = {};\nperformanceData.performance_history.forEach(item => {\n  if (!contentTypeScores[item.content_type]) {\n    contentTypeScores[item.content_type] = [];\n  }\n  contentTypeScores[item.content_type].push(item.success_score);\n});\n\nfor (const [type, scores] of Object.entries(contentTypeScores)) {\n  const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;\n  performanceAnalysis.content_type_winners[type] = {\n    average_score: avgScore,\n    sample_size: scores.length,\n    recommendation: avgScore > 0.8 ? 'increase_frequency' : avgScore < 0.6 ? 'improve_quality' : 'maintain_current'\n  };\n}\n\n// Generate strategic recommendations\nconst strategicRecommendations = [];\n\n// Diversity recommendations\nif (diversityAnalysis.needs_rebalancing) {\n  strategicRecommendations.push({\n    type: 'diversity',\n    priority: 'high',\n    action: 'Increase content variety in next 10 videos',\n    details: diversityAnalysis.recommendations\n  });\n}\n\n// Performance-based recommendations\nconst topContentType = Object.entries(performanceAnalysis.content_type_winners)\n  .sort(([,a], [,b]) => b.average_score - a.average_score)[0];\n\nif (topContentType) {\n  strategicRecommendations.push({\n    type: 'performance_optimization',\n    priority: 'medium',\n    action: `Increase ${topContentType[0]} content frequency`,\n    details: `${topContentType[0]} shows ${(topContentType[1].average_score * 100).toFixed(1)}% success rate`\n  });\n}\n\n// Underperformer recommendations\nif (performanceAnalysis.underperformers.length > 0) {\n  strategicRecommendations.push({\n    type: 'quality_improvement',\n    priority: 'high',\n    action: 'Review and improve underperforming content types',\n    details: `${performanceAnalysis.underperformers.length} topics scoring below 60%`\n  });\n}\n\n// Seasonal optimization\nconst currentMonth = new Date().getMonth() + 1;\nlet seasonalRecommendation = null;\n\nif ([8, 9].includes(currentMonth)) {\n  seasonalRecommendation = {\n    type: 'seasonal',\n    priority: 'medium',\n    action: 'Focus on back-to-school content',\n    details: 'Prioritize alphabet, numbers, and basic skills content'\n  };\n} else if ([11, 12].includes(currentMonth)) {\n  seasonalRecommendation = {\n    type: 'seasonal',\n    priority: 'medium',\n    action: 'Emphasize sharing and kindness themes',\n    details: 'Holiday season - focus on social and behavioral content'\n  };\n}\n\nif (seasonalRecommendation) {\n  strategicRecommendations.push(seasonalRecommendation);\n}\n\n// Final optimization plan\nconst optimizationPlan = {\n  analysis_timestamp: new Date().toISOString(),\n  diversity_analysis: diversityAnalysis,\n  performance_analysis: performanceAnalysis,\n  strategic_recommendations: strategicRecommendations,\n  implementation_priority: strategicRecommendations.sort((a, b) => {\n    const priorityOrder = { high: 3, medium: 2, low: 1 };\n    return priorityOrder[b.priority] - priorityOrder[a.priority];\n  }),\n  next_review: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()\n};\n\nreturn optimizationPlan;"
+      },
+      "id": "strategy-optimizer",
+      "name": "Optimize Content Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-high-priority",
+              "leftValue": "={{ $json.strategic_recommendations.filter(r => r.priority === 'high').length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "priority-gate",
+      "name": "High Priority Actions?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Implement high priority strategy changes\nconst optimizationPlan = $input.first().json;\nconst highPriorityActions = optimizationPlan.strategic_recommendations.filter(r => r.priority === 'high');\n\nconsole.log('=== IMPLEMENTING HIGH PRIORITY STRATEGY CHANGES ===');\nhighPriorityActions.forEach((action, index) => {\n  console.log(`${index + 1}. ${action.type.toUpperCase()}: ${action.action}`);\n  console.log(`   Details: ${action.details}`);\n});\nconsole.log('==================================================');\n\n// In production, this would update strategy parameters in the content generation system\n// For now, we'll simulate the updates\n\nconst strategyUpdates = {\n  diversity_adjustments: [],\n  content_type_weights: {},\n  quality_improvements: [],\n  seasonal_adjustments: []\n};\n\nhighPriorityActions.forEach(action => {\n  switch (action.type) {\n    case 'diversity':\n      strategyUpdates.diversity_adjustments.push({\n        action: 'increase_variety_weight',\n        target: 0.3,\n        duration: '10_videos'\n      });\n      break;\n    case 'quality_improvement':\n      strategyUpdates.quality_improvements.push({\n        action: 'increase_validation_threshold',\n        new_threshold: 0.85,\n        affected_content: 'underperforming_types'\n      });\n      break;\n    case 'seasonal':\n      strategyUpdates.seasonal_adjustments.push({\n        action: 'boost_seasonal_content',\n        weight_increase: 0.2,\n        duration: 'current_season'\n      });\n      break;\n  }\n});\n\nreturn {\n  strategy_updates: strategyUpdates,\n  implementation_timestamp: new Date().toISOString(),\n  actions_implemented: highPriorityActions.length,\n  status: 'strategy_updated'\n};"
+      },
+      "id": "strategy-implementer",
+      "name": "Implement Strategy Changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log routine strategy review\nconst optimizationPlan = $input.first().json;\n\nconsole.log('=== ROUTINE STRATEGY REVIEW ===');\nconsole.log(`Diversity Score: ${(optimizationPlan.diversity_analysis.current_diversity_score * 100).toFixed(1)}%`);\nconsole.log(`Top Performer: ${optimizationPlan.performance_analysis.top_performers[0]?.topic || 'N/A'}`);\nconsole.log(`Recommendations: ${optimizationPlan.strategic_recommendations.length}`);\noptimizationPlan.strategic_recommendations.forEach((rec, index) => {\n  console.log(`  ${index + 1}. [${rec.priority.toUpperCase()}] ${rec.action}`);\n});\nconsole.log('==============================');\n\nreturn {\n  review_type: 'routine',\n  diversity_score: optimizationPlan.diversity_analysis.current_diversity_score,\n  recommendations_count: optimizationPlan.strategic_recommendations.length,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "routine-logger",
+      "name": "Log Routine Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Strategy Review Timer": {
+      "main": [
+        [
+          {
+            "node": "Check Content Diversity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Content Diversity": {
+      "main": [
+        [
+          {
+            "node": "Fetch Performance History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Performance History": {
+      "main": [
+        [
+          {
+            "node": "Optimize Content Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Optimize Content Strategy": {
+      "main": [
+        [
+          {
+            "node": "High Priority Actions?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Priority Actions?": {
+      "main": [
+        [
+          {
+            "node": "Implement Strategy Changes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Routine Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-06-08T15:30:00.000Z",
+  "versionId": "1"
+}
+

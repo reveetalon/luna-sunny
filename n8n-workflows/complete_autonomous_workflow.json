@@ -1,0 +1,339 @@
+{
+  "name": "Complete Autonomous Video Generation Workflow",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "cron-trigger",
+      "name": "Hourly Video Generation",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "cronExpression": "0 * * * *"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5001/api/topics/select",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "{\n  \"age_group\": \"preschool\",\n  \"content_type\": \"autonomous\"\n}"
+        }
+      },
+      "id": "topic-selection",
+      "name": "Autonomous Topic Selection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5001/api/content/generate/auto",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "={\n  \"topic\": \"{{ $json.selected_topic.topic }}\",\n  \"content_type\": \"{{ $json.selected_topic.content_type }}\",\n  \"age_group\": \"{{ $json.selected_topic.age_group }}\",\n  \"duration_minutes\": 3,\n  \"style_requirements\": {\n    \"visual_style\": \"colorful_2d_cartoon\",\n    \"audio_style\": \"nursery_music\",\n    \"voice_style\": \"friendly_female_child\",\n    \"characters\": [\"Luna\", \"Sunny\"]\n  }\n}"
+        }
+      },
+      "id": "content-generation",
+      "name": "Generate Educational Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equal",
+              "value2": "success"
+            }
+          ]
+        }
+      },
+      "id": "content-validation",
+      "name": "Content Quality Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5001/api/video/generate",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "={\n  \"content_data\": {\n    \"topic\": \"{{ $json.content.topic }}\",\n    \"title\": \"{{ $json.content.title }}\",\n    \"content_type\": \"{{ $json.content.content_type }}\",\n    \"age_group\": \"{{ $json.content.age_group }}\",\n    \"duration_minutes\": {{ $json.content.duration_minutes }},\n    \"script_text\": \"{{ $json.content.script_text }}\",\n    \"scene_descriptions\": {{ JSON.stringify($json.content.scene_descriptions) }}\n  }\n}"
+        }
+      },
+      "id": "video-generation",
+      "name": "Generate Complete Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equal",
+              "value2": "success"
+            }
+          ]
+        }
+      },
+      "id": "video-validation",
+      "name": "Video Quality Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5001/api/publishing/upload/autonomous",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "={\n  \"video_path\": \"{{ $json.output_path }}\",\n  \"video_metadata\": {\n    \"topic\": \"{{ $json.metadata.topic }}\",\n    \"title\": \"{{ $json.title }}\",\n    \"content_type\": \"{{ $json.content_type }}\",\n    \"age_group\": \"{{ $json.age_group }}\",\n    \"characters\": {{ JSON.stringify($json.characters_used) }},\n    \"visual_style\": \"{{ $json.metadata.visual_style }}\",\n    \"audio_style\": \"{{ $json.metadata.audio_style }}\",\n    \"autonomous_generation\": true\n  }\n}"
+        }
+      },
+      "id": "autonomous-publishing",
+      "name": "Autonomous Multi-Platform Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1560, 100]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5001/api/topics/performance/update",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "={\n  \"topic\": \"{{ $json.video_metadata.topic }}\",\n  \"content_type\": \"{{ $json.video_metadata.content_type }}\",\n  \"upload_results\": {{ JSON.stringify($json.upload_results) }},\n  \"generation_timestamp\": \"{{ $json.generation_timestamp }}\",\n  \"platforms_uploaded\": {{ $json.successful_uploads }},\n  \"video_metadata\": {{ JSON.stringify($json.video_metadata) }}\n}"
+        }
+      },
+      "id": "performance-tracking",
+      "name": "Update Performance Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1780, 100]
+    },
+    {
+      "parameters": {
+        "message": "=✅ Autonomous Video Generation Complete!\n\n📹 Video: {{ $json.video_metadata.title }}\n🎯 Topic: {{ $json.video_metadata.topic }}\n👥 Characters: {{ $json.video_metadata.characters.join(', ') }}\n📱 Platforms: {{ $json.successful_uploads }}/{{ $json.total_platforms }}\n⏰ Generated: {{ $json.generation_timestamp }}\n\n🔗 Upload Results:\n{{ $json.upload_results.map(r => `${r.platform}: ${r.status} - ${r.upload_url}`).join('\\n') }}"
+      },
+      "id": "success-notification",
+      "name": "Success Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [2000, 100]
+    },
+    {
+      "parameters": {
+        "message": "=❌ Content Generation Failed\n\n🚫 Error: {{ $json.error }}\n⏰ Time: {{ new Date().toISOString() }}\n🔄 Will retry next hour"
+      },
+      "id": "content-error-notification",
+      "name": "Content Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "message": "=❌ Video Generation Failed\n\n🎬 Content: {{ $json.content.title }}\n🚫 Error: {{ $json.error }}\n⏰ Time: {{ new Date().toISOString() }}\n🔄 Will retry next hour"
+      },
+      "id": "video-error-notification",
+      "name": "Video Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5001/api/status/health",
+        "options": {}
+      },
+      "id": "health-check",
+      "name": "System Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [240, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "equal",
+              "value2": "healthy"
+            }
+          ]
+        }
+      },
+      "id": "health-validation",
+      "name": "System Health Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 100]
+    },
+    {
+      "parameters": {
+        "message": "=🚨 System Health Check Failed\n\n❌ Status: {{ $json.status }}\n🔧 Services: {{ Object.keys($json.services || {}).join(', ') }}\n⏰ Time: {{ new Date().toISOString() }}\n\n🛠️ Manual intervention required"
+      },
+      "id": "health-error-notification",
+      "name": "System Health Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Hourly Video Generation": {
+      "main": [
+        [
+          {
+            "node": "System Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Health Check": {
+      "main": [
+        [
+          {
+            "node": "System Health Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "System Health Gate": {
+      "main": [
+        [
+          {
+            "node": "Autonomous Topic Selection",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "System Health Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autonomous Topic Selection": {
+      "main": [
+        [
+          {
+            "node": "Generate Educational Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Educational Content": {
+      "main": [
+        [
+          {
+            "node": "Content Quality Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Content Quality Gate": {
+      "main": [
+        [
+          {
+            "node": "Generate Complete Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Content Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Complete Video": {
+      "main": [
+        [
+          {
+            "node": "Video Quality Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Quality Gate": {
+      "main": [
+        [
+          {
+            "node": "Autonomous Multi-Platform Upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Video Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autonomous Multi-Platform Upload": {
+      "main": [
+        [
+          {
+            "node": "Update Performance Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Performance Analytics": {
+      "main": [
+        [
+          {
+            "node": "Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-08T11:45:00.000Z",
+      "updatedAt": "2025-01-08T11:45:00.000Z",
+      "id": "autonomous-video-generation",
+      "name": "Autonomous Video Generation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-08T11:45:00.000Z",
+  "versionId": "complete-autonomous-v1"
+}
+

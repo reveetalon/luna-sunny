@@ -1,0 +1,345 @@
+{
+  "name": "Autonomous Children's Video Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Hourly Content Generation",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/topics/select",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "{\n  \"target_age_group\": null\n}",
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "topic-selector",
+      "name": "Select Next Topic",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/content/generate/auto",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "={\n  \"target_age_group\": \"{{ $json.age_group }}\"\n}",
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "content-generator",
+      "name": "Generate Educational Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/content/validate",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "={\n  \"script_text\": \"{{ $json.script_text }}\",\n  \"content_type\": \"{{ $json.content_type }}\",\n  \"age_group\": \"{{ $json.age_group }}\"\n}",
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "content-validator",
+      "name": "Validate Content Quality",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "quality-check",
+              "leftValue": "={{ $json.overall_score }}",
+              "rightValue": 0.8,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "quality-gate",
+      "name": "Quality Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate visual assets for the content\nconst contentData = $input.first().json;\n\n// Mock visual asset generation - in production this would call actual AI services\nconst visualAssets = {\n  characters: [\n    {\n      asset_id: `char_${contentData.character_list[0]}_${Date.now()}`,\n      asset_type: \"character\",\n      description: `${contentData.character_list[0]} character for ${contentData.content_type}`,\n      file_path: `/assets/characters/${contentData.character_list[0]}.png`,\n      style: \"bright_colorful\"\n    }\n  ],\n  backgrounds: [\n    {\n      asset_id: `bg_${contentData.content_type}_${Date.now()}`,\n      asset_type: \"background\",\n      description: `Background for ${contentData.content_type} content`,\n      file_path: `/assets/backgrounds/${contentData.content_type}.png`,\n      style: \"educational_clean\"\n    }\n  ],\n  educational_objects: [\n    {\n      asset_id: `obj_${contentData.topic}_${Date.now()}`,\n      asset_type: \"educational_object\",\n      description: `Educational object for ${contentData.topic}`,\n      file_path: `/assets/objects/${contentData.topic}.png`,\n      style: \"bright_colorful\"\n    }\n  ]\n};\n\n// Generate audio assets\nconst audioAssets = {\n  background_music: {\n    asset_id: `music_${contentData.content_type}_${Date.now()}`,\n    asset_type: \"background_music\",\n    description: `Background music for ${contentData.content_type}`,\n    file_path: `/assets/audio/music_${contentData.content_type}.mp3`,\n    duration_seconds: contentData.duration_minutes * 60,\n    style: \"upbeat_cheerful\"\n  },\n  voice_narration: {\n    asset_id: `voice_${contentData.character_list[0]}_${Date.now()}`,\n    asset_type: \"voice_narration\",\n    description: `Voice narration by ${contentData.character_list[0]}`,\n    file_path: `/assets/audio/voice_${contentData.character_list[0]}.mp3`,\n    duration_seconds: Math.floor(contentData.script_text.split(' ').length / 2),\n    character: contentData.character_list[0]\n  },\n  sound_effects: [\n    {\n      asset_id: `sfx_success_${Date.now()}`,\n      asset_type: \"sound_effect\",\n      description: \"Success chime for positive reinforcement\",\n      file_path: \"/assets/audio/success_chime.mp3\",\n      duration_seconds: 1.5\n    }\n  ]\n};\n\n// Combine content with generated assets\nconst result = {\n  ...contentData,\n  visual_assets: visualAssets,\n  audio_assets: audioAssets,\n  generation_timestamp: new Date().toISOString(),\n  asset_generation_status: \"completed\"\n};\n\nreturn result;"
+      },
+      "id": "asset-generator",
+      "name": "Generate Visual & Audio Assets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble video from all generated assets\nconst contentData = $input.first().json;\n\n// Mock video assembly - in production this would call actual video rendering services\nconst videoMetadata = {\n  video_id: `video_${contentData.topic}_${contentData.content_type}_${Date.now()}`,\n  title: contentData.title,\n  description: `Educational video about ${contentData.topic} for ${contentData.age_group} children`,\n  duration_seconds: contentData.duration_minutes * 60,\n  resolution: \"1920x1080\",\n  framerate: \"30fps\",\n  format: \"MP4\",\n  file_path: `/assets/videos/video_${contentData.topic}_${Date.now()}.mp4`,\n  thumbnail_path: `/assets/thumbnails/thumb_${contentData.topic}_${Date.now()}.jpg`,\n  \n  // Assembly details\n  assembly_plan: {\n    scenes: contentData.scene_descriptions.map((scene, index) => ({\n      scene_number: index + 1,\n      duration_seconds: scene.duration_seconds,\n      visual_elements: scene.visual_elements,\n      character_actions: scene.character_actions\n    })),\n    audio_timeline: contentData.audio_cues,\n    total_assets_used: {\n      visual_assets: Object.keys(contentData.visual_assets).reduce((sum, key) => \n        sum + (Array.isArray(contentData.visual_assets[key]) ? \n        contentData.visual_assets[key].length : 1), 0),\n      audio_assets: Object.keys(contentData.audio_assets).reduce((sum, key) => \n        sum + (Array.isArray(contentData.audio_assets[key]) ? \n        contentData.audio_assets[key].length : 1), 0)\n    }\n  },\n  \n  // Quality metrics\n  quality_score: 0.92,\n  educational_effectiveness: 0.89,\n  age_appropriateness: 0.95,\n  \n  // Metadata for publishing\n  tags: [\n    contentData.content_type,\n    contentData.age_group,\n    contentData.topic,\n    \"educational\",\n    \"children\",\n    \"learning\"\n  ],\n  category: \"Education\",\n  target_audience: contentData.age_group,\n  learning_objectives: contentData.learning_objectives,\n  \n  // Processing status\n  assembly_status: \"completed\",\n  assembly_timestamp: new Date().toISOString(),\n  ready_for_upload: true\n};\n\n// Combine all data for final output\nconst result = {\n  ...contentData,\n  video_metadata: videoMetadata,\n  processing_complete: true,\n  final_output_path: videoMetadata.file_path\n};\n\nreturn result;"
+      },
+      "id": "video-assembler",
+      "name": "Assemble Final Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock video upload to multiple platforms\nconst videoData = $input.first().json;\nconst videoMetadata = videoData.video_metadata;\n\n// Simulate upload to YouTube\nconst youtubeUpload = {\n  platform: \"youtube\",\n  video_id: `yt_${Date.now()}`,\n  url: `https://youtube.com/watch?v=${Math.random().toString(36).substr(2, 11)}`,\n  title: videoMetadata.title,\n  description: `${videoMetadata.description}\\n\\nLearning Objectives:\\n${videoData.learning_objectives.map(obj => `• ${obj}`).join('\\n')}`,\n  tags: videoMetadata.tags,\n  category: videoMetadata.category,\n  privacy: \"public\",\n  upload_status: \"completed\",\n  upload_timestamp: new Date().toISOString(),\n  estimated_processing_time: \"5-10 minutes\"\n};\n\n// Simulate upload to other platforms\nconst additionalUploads = [\n  {\n    platform: \"vimeo\",\n    video_id: `vm_${Date.now()}`,\n    url: `https://vimeo.com/${Math.floor(Math.random() * 1000000000)}`,\n    upload_status: \"completed\"\n  },\n  {\n    platform: \"facebook\",\n    video_id: `fb_${Date.now()}`,\n    url: `https://facebook.com/video/${Math.floor(Math.random() * 1000000000)}`,\n    upload_status: \"completed\"\n  }\n];\n\n// Update performance tracking\nconst performanceUpdate = {\n  topic: videoData.topic,\n  content_type: videoData.content_type,\n  age_group: videoData.age_group,\n  performance_metrics: {\n    views: 0, // Will be updated later by monitoring\n    watch_time: 0,\n    engagement_rate: 0,\n    retention_rate: 0\n  },\n  upload_timestamp: new Date().toISOString(),\n  platforms: [youtubeUpload, ...additionalUploads]\n};\n\n// Final result\nconst result = {\n  ...videoData,\n  upload_results: {\n    primary_upload: youtubeUpload,\n    additional_uploads: additionalUploads,\n    total_platforms: additionalUploads.length + 1,\n    all_uploads_successful: true\n  },\n  performance_tracking: performanceUpdate,\n  workflow_status: \"completed\",\n  completion_timestamp: new Date().toISOString()\n};\n\nreturn result;"
+      },
+      "id": "video-uploader",
+      "name": "Upload to Platforms",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/topics/performance/update",
+        "options": {
+          "bodyContentType": "json",
+          "jsonBody": "={\n  \"topic\": \"{{ $json.topic }}\",\n  \"content_type\": \"{{ $json.content_type }}\",\n  \"age_group\": \"{{ $json.age_group }}\",\n  \"performance_metrics\": {{ $json.performance_tracking.performance_metrics }}\n}",
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "performance-tracker",
+      "name": "Update Performance Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log successful completion\nconst result = $input.first().json;\n\nconsole.log('=== AUTONOMOUS VIDEO GENERATION COMPLETED ===');\nconsole.log(`Topic: ${result.topic}`);\nconsole.log(`Content Type: ${result.content_type}`);\nconsole.log(`Age Group: ${result.age_group}`);\nconsole.log(`Title: ${result.title}`);\nconsole.log(`Duration: ${result.duration_minutes} minutes`);\nconsole.log(`Video File: ${result.video_metadata.file_path}`);\nconsole.log(`Primary Upload: ${result.upload_results.primary_upload.url}`);\nconsole.log(`Completion Time: ${result.completion_timestamp}`);\nconsole.log('===============================================');\n\nreturn {\n  workflow_summary: {\n    status: 'success',\n    topic: result.topic,\n    content_type: result.content_type,\n    age_group: result.age_group,\n    title: result.title,\n    video_url: result.upload_results.primary_upload.url,\n    completion_time: result.completion_timestamp,\n    total_processing_time: 'Estimated 15-20 minutes',\n    next_generation: 'Scheduled in 1 hour'\n  }\n};"
+      },
+      "id": "completion-logger",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle content that failed quality validation\nconst failedContent = $input.first().json;\n\nconsole.log('=== CONTENT QUALITY VALIDATION FAILED ===');\nconsole.log(`Topic: ${failedContent.topic}`);\nconsole.log(`Content Type: ${failedContent.content_type}`);\nconsole.log(`Quality Score: ${failedContent.overall_score}`);\nconsole.log(`Threshold: 0.8`);\nconsole.log('Attempting regeneration with different parameters...');\nconsole.log('==========================================');\n\n// In production, this could trigger regeneration with different parameters\n// or flag the content for manual review\n\nreturn {\n  workflow_summary: {\n    status: 'failed_quality_check',\n    topic: failedContent.topic,\n    content_type: failedContent.content_type,\n    quality_score: failedContent.overall_score,\n    required_score: 0.8,\n    action: 'Content flagged for review',\n    next_attempt: 'Will retry with next topic selection'\n  }\n};"
+      },
+      "id": "quality-failure-handler",
+      "name": "Handle Quality Failure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Error handling for any workflow failures\nconst error = $input.first().json;\n\nconsole.log('=== WORKFLOW ERROR OCCURRED ===');\nconsole.log(`Error: ${JSON.stringify(error, null, 2)}`);\nconsole.log(`Timestamp: ${new Date().toISOString()}`);\nconsole.log('Will retry on next scheduled run');\nconsole.log('===============================');\n\n// In production, this could send alerts, log to monitoring systems, etc.\n\nreturn {\n  workflow_summary: {\n    status: 'error',\n    error_details: error,\n    timestamp: new Date().toISOString(),\n    action: 'Logged for investigation',\n    next_attempt: 'Next scheduled run in 1 hour'\n  }\n};"
+      },
+      "id": "error-handler",
+      "name": "Handle Errors",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Hourly Content Generation": {
+      "main": [
+        [
+          {
+            "node": "Select Next Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select Next Topic": {
+      "main": [
+        [
+          {
+            "node": "Generate Educational Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Educational Content": {
+      "main": [
+        [
+          {
+            "node": "Validate Content Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Content Quality": {
+      "main": [
+        [
+          {
+            "node": "Quality Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Gate": {
+      "main": [
+        [
+          {
+            "node": "Generate Visual & Audio Assets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Quality Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Visual & Audio Assets": {
+      "main": [
+        [
+          {
+            "node": "Assemble Final Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Final Video": {
+      "main": [
+        [
+          {
+            "node": "Upload to Platforms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Platforms": {
+      "main": [
+        [
+          {
+            "node": "Update Performance Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Performance Data": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-06-08T15:30:00.000Z",
+  "versionId": "1"
+}
+

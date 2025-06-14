@@ -1,0 +1,180 @@
+{
+  "name": "Performance Monitoring & Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "analytics-cron",
+      "name": "Analytics Update Timer",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/topics/analytics",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "fetch-analytics",
+      "name": "Fetch Performance Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze performance trends and generate insights\nconst analytics = $input.first().json;\n\n// Calculate trend analysis\nconst trendAnalysis = {\n  content_type_trends: {},\n  age_group_trends: {},\n  overall_performance: {\n    total_topics: analytics.total_topics,\n    average_performance: 0,\n    top_performer: null,\n    improvement_areas: []\n  },\n  recommendations: []\n};\n\n// Analyze content type performance\nfor (const [contentType, score] of Object.entries(analytics.content_type_performance)) {\n  trendAnalysis.content_type_trends[contentType] = {\n    current_score: score,\n    trend: score > 0.8 ? 'strong' : score > 0.6 ? 'moderate' : 'needs_improvement',\n    recommendation: score < 0.7 ? `Improve ${contentType} content quality` : `Maintain ${contentType} performance`\n  };\n}\n\n// Analyze age group performance\nfor (const [ageGroup, score] of Object.entries(analytics.age_group_performance)) {\n  trendAnalysis.age_group_trends[ageGroup] = {\n    current_score: score,\n    trend: score > 0.8 ? 'strong' : score > 0.6 ? 'moderate' : 'needs_improvement',\n    recommendation: score < 0.7 ? `Focus on ${ageGroup} content optimization` : `${ageGroup} content performing well`\n  };\n}\n\n// Find top performers\nif (analytics.top_performing_topics && analytics.top_performing_topics.length > 0) {\n  trendAnalysis.overall_performance.top_performer = analytics.top_performing_topics[0];\n}\n\n// Generate recommendations\nif (analytics.diversity_metrics.recent_diversity_score < 0.7) {\n  trendAnalysis.recommendations.push('Increase content diversity - recent content shows low variety');\n}\n\nif (analytics.recent_trends.trend === 'declining') {\n  trendAnalysis.recommendations.push('Performance declining - review content strategy');\n}\n\n// Calculate overall performance score\nconst allScores = [\n  ...Object.values(analytics.content_type_performance),\n  ...Object.values(analytics.age_group_performance)\n];\ntrendAnalysis.overall_performance.average_performance = \n  allScores.reduce((sum, score) => sum + score, 0) / allScores.length;\n\n// Add timestamp\ntrendAnalysis.analysis_timestamp = new Date().toISOString();\ntrendAnalysis.next_analysis = new Date(Date.now() + 15 * 60 * 1000).toISOString();\n\nreturn {\n  raw_analytics: analytics,\n  trend_analysis: trendAnalysis\n};"
+      },
+      "id": "trend-analyzer",
+      "name": "Analyze Performance Trends",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "performance-alert",
+              "leftValue": "={{ $json.trend_analysis.overall_performance.average_performance }}",
+              "rightValue": 0.7,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "performance-gate",
+      "name": "Performance Alert Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate performance alert\nconst data = $input.first().json;\nconst analysis = data.trend_analysis;\n\nconsole.log('=== PERFORMANCE ALERT ===');\nconsole.log(`Overall Performance: ${(analysis.overall_performance.average_performance * 100).toFixed(1)}%`);\nconsole.log(`Alert Threshold: 70%`);\nconsole.log('Recommendations:');\nanalysis.recommendations.forEach(rec => console.log(`• ${rec}`));\nconsole.log('========================');\n\n// In production, this could send email alerts, Slack notifications, etc.\n\nreturn {\n  alert_type: 'performance_degradation',\n  severity: 'medium',\n  current_performance: analysis.overall_performance.average_performance,\n  threshold: 0.7,\n  recommendations: analysis.recommendations,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "alert-generator",
+      "name": "Generate Performance Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log normal performance status\nconst data = $input.first().json;\nconst analysis = data.trend_analysis;\n\nconsole.log('=== PERFORMANCE STATUS: NORMAL ===');\nconsole.log(`Overall Performance: ${(analysis.overall_performance.average_performance * 100).toFixed(1)}%`);\nconsole.log(`Total Topics: ${analysis.overall_performance.total_topics}`);\nif (analysis.overall_performance.top_performer) {\n  console.log(`Top Performer: ${analysis.overall_performance.top_performer.topic} (${analysis.overall_performance.top_performer.content_type})`);\n}\nconsole.log('=================================');\n\nreturn {\n  status: 'normal',\n  performance_score: analysis.overall_performance.average_performance,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "status-logger",
+      "name": "Log Normal Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Analytics Update Timer": {
+      "main": [
+        [
+          {
+            "node": "Fetch Performance Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Performance Analytics": {
+      "main": [
+        [
+          {
+            "node": "Analyze Performance Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Performance Trends": {
+      "main": [
+        [
+          {
+            "node": "Performance Alert Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Performance Alert Gate": {
+      "main": [
+        [
+          {
+            "node": "Generate Performance Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Normal Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-06-08T15:30:00.000Z",
+  "versionId": "1"
+}
+
