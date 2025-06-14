@@ -7,3 +7,4 @@ openai
 moviepy
 jinja2
 ffmpeg-python
+psutil
