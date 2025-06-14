@@ -1,0 +1,8 @@
+flask
+requests
+pydantic
+numpy
+openai
+moviepy
+jinja2
+ffmpeg-python
