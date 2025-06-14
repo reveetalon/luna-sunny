@@ -6,3 +6,4 @@ openai
 moviepy
 jinja2
 ffmpeg-python
+flask-cors
