@@ -1,4 +1,5 @@
 flask
+flask-cors
 requests
 pydantic
 numpy
@@ -6,4 +7,3 @@ openai
 moviepy
 jinja2
 ffmpeg-python
-flask-cors
