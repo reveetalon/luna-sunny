@@ -20,13 +20,14 @@ from src.models.media_generator import (
 
 class MediaGenerationService:
     """Service for generating visual and audio assets using AI tools"""
-    
-    def __init__(self, assets_dir: str = "/home/ubuntu/generated_assets"):
+
+    def __init__(self, assets_dir: str = None):
+        if assets_dir is None:
+            assets_dir = os.path.join(os.getcwd(), "generated-assets")
         self.assets_dir = assets_dir
         self.visual_generator = VisualGenerator()
         self.audio_generator = AudioGenerator()
         self.video_assembler = VideoAssembler()
-        
         # Create asset directories
         self._create_asset_directories()
     
