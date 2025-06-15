@@ -53,7 +53,6 @@ class VideoGenerationService:
 
     self.visual_style = VisualStyle.BRIGHT_COLORFUL
     self.audio_style = AudioStyle.UPBEAT_CHEERFUL
-
     self.main_characters = {
         "Luna": {
             "type": "child_female",
