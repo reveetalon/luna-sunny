@@ -40,46 +40,50 @@ class VideoProject:
 class VideoGenerationService:
     """Service for creating complete educational videos"""
     
-    def __init__(self, assets_dir: Optional[str] = None):
+    def __init__(self, assets_dir: str = None):
     if assets_dir is None:
         assets_dir = os.path.join(os.getcwd(), "generated-assets")
     self.assets_dir = assets_dir
-    self.media_service = MediaGenerationService(self.assets_dir)
+    self.media_service = MediaGenerationService(assets_dir)
     self.video_output_dir = os.path.join(self.assets_dir, "videos")
     self.temp_dir = os.path.join(self.assets_dir, "temp")
-
+    
+    # Create directories
     os.makedirs(self.video_output_dir, exist_ok=True)
     os.makedirs(self.temp_dir, exist_ok=True)
 
-    self.visual_style = VisualStyle.BRIGHT_COLORFUL
-    self.audio_style = AudioStyle.UPBEAT_CHEERFUL
-    self.main_characters = {
-        "Luna": {
-            "type": "child_female",
-            "age": "5-6 years",
-            "personality": "friendly and helpful",
-            "appearance": "brown curly hair, green eyes, purple dress with stars",
-            "voice_type": "friendly_female_child",
-            "role": "main_teacher"
-        },
-        "Sunny": {
-            "type": "child_female",
-            "age": "4-5 years",
-            "personality": "curious and excited",
-            "appearance": "blonde hair, blue eyes, yellow shirt with sun design",
-            "voice_type": "friendly_female_child",
-            "role": "learning_companion"
-        },
-        "Melody": {
-            "type": "child_female",
-            "age": "6-7 years",
-            "personality": "musical and encouraging",
-            "appearance": "red hair in pigtails, brown eyes, rainbow striped shirt",
-            "voice_type": "friendly_female_child",
-            "role": "music_guide"
+        
+        # Style specifications based on user requirements
+        self.visual_style = VisualStyle.BRIGHT_COLORFUL  # Colorful 2D cartoon
+        self.audio_style = AudioStyle.UPBEAT_CHEERFUL    # Nursery style music
+        
+        # Character specifications for consistency
+        self.main_characters = {
+            "Luna": {
+                "type": "child_female",
+                "age": "5-6 years",
+                "personality": "friendly and helpful",
+                "appearance": "brown curly hair, green eyes, purple dress with stars",
+                "voice_type": "friendly_female_child",
+                "role": "main_teacher"
+            },
+            "Sunny": {
+                "type": "child_female", 
+                "age": "4-5 years",
+                "personality": "curious and excited",
+                "appearance": "blonde hair, blue eyes, yellow shirt with sun design",
+                "voice_type": "friendly_female_child",
+                "role": "learning_companion"
+            },
+            "Melody": {
+                "type": "child_female",
+                "age": "6-7 years", 
+                "personality": "musical and encouraging",
+                "appearance": "red hair in pigtails, brown eyes, rainbow striped shirt",
+                "voice_type": "friendly_female_child",
+                "role": "music_guide"
+            }
         }
-    }
-
     
     def create_educational_video(self, content_data: Dict[str, Any]) -> VideoProject:
         """Create complete educational video from content data"""
@@ -277,7 +281,7 @@ class VideoGenerationService:
         
         return audio_assets
     
-    def _create_video_scenes(self, content_data: Dict[str, Any], 
+    def _create_video_scenes(self, content_data: Dict[str, Any], :
                            visual_assets: Dict[str, Any], 
                            audio_assets: Dict[str, Any]) -> List[VideoScene]:
         """Create video scenes from content and assets"""
@@ -360,7 +364,7 @@ class VideoGenerationService:
         
         return scenes
     
-    def _assemble_video_file(self, video_project: VideoProject, 
+    def _assemble_video_file(self, video_project: VideoProject, :
                            visual_assets: Dict[str, Any], 
                            audio_assets: Dict[str, Any]) -> bool:
         """Assemble final video file using ffmpeg"""
@@ -506,4 +510,3 @@ if __name__ == "__main__":
     # Generate video
     video_project = video_service.create_educational_video(test_content)
     print(f"Test video project created: {video_project.project_id}")
-

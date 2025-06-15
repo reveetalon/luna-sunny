@@ -20,14 +20,13 @@ from src.models.media_generator import (
 
 class MediaGenerationService:
     """Service for generating visual and audio assets using AI tools"""
-
-    def __init__(self, assets_dir: str = None):
-        if assets_dir is None:
-            assets_dir = os.path.join(os.getcwd(), "generated-assets")
+    
+    def __init__(self, assets_dir: str = "/home/ubuntu/generated_assets"):
         self.assets_dir = assets_dir
         self.visual_generator = VisualGenerator()
         self.audio_generator = AudioGenerator()
         self.video_assembler = VideoAssembler()
+        
         # Create asset directories
         self._create_asset_directories()
     
@@ -48,7 +47,7 @@ class MediaGenerationService:
         for directory in directories:
             os.makedirs(directory, exist_ok=True)
     
-    def generate_character_image(self, character_name: str, style: VisualStyle, 
+    def generate_character_image(self, character_name: str, style: VisualStyle, :
                                 age_group: str, expression: str = "happy") -> VisualAsset:
         """Generate character image using AI image generation"""
         
@@ -113,7 +112,7 @@ class MediaGenerationService:
         
         return asset
     
-    def generate_background_image(self, scene_description: str, style: VisualStyle,
+    def generate_background_image(self, scene_description: str, style: VisualStyle,:
                                  content_type: str = "educational") -> VisualAsset:
         """Generate background image for educational scenes"""
         
@@ -170,7 +169,7 @@ class MediaGenerationService:
         
         return asset
     
-    def generate_educational_object(self, object_type: str, topic: str, 
+    def generate_educational_object(self, object_type: str, topic: str, :
                                    style: VisualStyle) -> VisualAsset:
         """Generate educational objects like letters, numbers, shapes"""
         
@@ -227,7 +226,7 @@ class MediaGenerationService:
         
         return asset
     
-    def generate_background_music(self, content_type: str, age_group: str,
+    def generate_background_music(self, content_type: str, age_group: str,:
                                  duration_minutes: float, style: AudioStyle) -> AudioAsset:
         """Generate background music for educational content"""
         
@@ -281,7 +280,7 @@ class MediaGenerationService:
         
         return asset
     
-    def generate_voice_narration(self, script_text: str, character_name: str,
+    def generate_voice_narration(self, script_text: str, character_name: str,:
                                 age_group: str) -> AudioAsset:
         """Generate voice narration for educational scripts"""
         
@@ -430,4 +429,3 @@ class MediaGenerationService:
                         print(f"Cleaned up old asset: {file_path}")
                     except OSError:
                         pass
-
