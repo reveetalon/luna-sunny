@@ -40,15 +40,18 @@ class VideoProject:
 class VideoGenerationService:
     """Service for creating complete educational videos"""
     
-    def __init__(self, assets_dir: str = "/home/ubuntu/generated_assets"):
-        self.assets_dir = assets_dir
-        self.media_service = MediaGenerationService(assets_dir)
-        self.video_output_dir = f"{assets_dir}/videos"
-        self.temp_dir = f"{assets_dir}/temp"
-        
-        # Create directories
-        os.makedirs(self.video_output_dir, exist_ok=True)
-        os.makedirs(self.temp_dir, exist_ok=True)
+    def __init__(self, assets_dir: str = None):
+    if assets_dir is None:
+        assets_dir = os.path.join(os.getcwd(), "generated-assets")
+    self.assets_dir = assets_dir
+    self.media_service = MediaGenerationService(assets_dir)
+    self.video_output_dir = os.path.join(self.assets_dir, "videos")
+    self.temp_dir = os.path.join(self.assets_dir, "temp")
+    
+    # Create directories
+    os.makedirs(self.video_output_dir, exist_ok=True)
+    os.makedirs(self.temp_dir, exist_ok=True)
+
         
         # Style specifications based on user requirements
         self.visual_style = VisualStyle.BRIGHT_COLORFUL  # Colorful 2D cartoon
