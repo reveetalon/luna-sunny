@@ -1,4 +1,3 @@
-
 """Publishing and Upload API Routes
 Handles automated video uploading and publishing"""
 
@@ -10,23 +9,21 @@ import os
 publishing_bp = Blueprint('publishing', __name__)
 publishing_service = AutomatedPublishingService()
 
+
 @publishing_bp.route('/thumbnail/<path:thumbnail_path>')
 def download_thumbnail(thumbnail_path):
     try:
-        # SAFELY construct the full path using project-relative directory
         full_path = os.path.join(os.getcwd(), "generated_assets", "thumbnails", thumbnail_path)
-
         if not os.path.exists(full_path):
             return jsonify({'error': f'Thumbnail not found: {thumbnail_path}', 'status': 'error'}), 404
-
         return send_file(full_path, as_attachment=True)
     except Exception as e:
         return jsonify({'error': f'Thumbnail download failed: {str(e)}', 'status': 'error'}), 500
 
+
 @publishing_bp.route('/test', methods=['POST'])
 def test_publishing():
     try:
-        # Use a relative path instead of /home/ubuntu
         test_video_dir = os.path.join(os.getcwd(), "generated_assets", "videos")
         os.makedirs(test_video_dir, exist_ok=True)
         test_video_path = os.path.join(test_video_dir, "test_publishing.mp4")
@@ -37,7 +34,7 @@ def test_publishing():
                 'ffmpeg', '-y',
                 '-f', 'lavfi',
                 '-i', 'color=c=lightgreen:size=1280x720:d=10',
-                '-vf', 'drawtext=text='Publishing Test Video':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2',
+                '-vf', "drawtext=text='Publishing Test Video':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2",
                 '-c:v', 'libx264',
                 '-t', '10',
                 test_video_path
